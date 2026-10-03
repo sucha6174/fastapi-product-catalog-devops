@@ -65,6 +65,42 @@ jobs:
           # Build and validate multi-stage Docker image locally on the runner
           docker build -t $ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REPOSITORY:latest .
 
+      - name: Validate IAM Role ARN Format
+        if: env.AWS_ROLE_TO_ASSUME != ''
+        env:
+          ROLE_TO_CHECK: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        run: |
+          if [[ "$ROLE_TO_CHECK" =~ ^arn:aws:iam::[0-9]{12}:role/.+$ ]]; then
+            echo "Role ARN format is valid."
+          else
+            echo "::error title=Malformed AWS_ROLE_TO_ASSUME::The AWS_ROLE_TO_ASSUME secret must be a full IAM role ARN matching 'arn:aws:iam::<12-digit-account-id>:role/<role-name>'. Received: '$ROLE_TO_CHECK'. Please update your GitHub Secret to the full ARN."
+            exit 1
+          fi
+
+      - name: Inspect GitHub OIDC Token Claims (Diagnostic)
+        if: env.AWS_ROLE_TO_ASSUME != ''
+        run: |
+          echo "Inspecting GitHub OIDC token claims for AWS STS..."
+          TOKEN_RESP=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")
+          python -c "
+          import sys, json, base64
+          try:
+              data = json.loads(sys.argv[1])
+              jwt = data.get('value', '')
+              parts = jwt.split('.')
+              if len(parts) >= 2:
+                  payload = json.loads(base64.urlsafe_b64decode(parts[1] + '===').decode('utf-8'))
+                  print('=== GITHUB ACTIONS OIDC CLAIMS ===')
+                  print('Issuer (iss):', payload.get('iss'))
+                  print('Audience (aud):', payload.get('aud'))
+                  print('Subject (sub):', payload.get('sub'))
+                  print('Repository:', payload.get('repository'))
+                  print('Ref:', payload.get('ref'))
+                  print('==================================')
+          except Exception as e:
+              print('Could not decode diagnostic token:', e)
+          " "$TOKEN_RESP"
+
       # Preferred Authentication: GitHub OIDC (Role Assumption without long-lived keys)
       - name: Configure AWS Credentials (OIDC)
         if: env.AWS_ROLE_TO_ASSUME != ''

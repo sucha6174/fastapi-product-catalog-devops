@@ -17,7 +17,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 # IAM Role assumed by GitHub Actions via OIDC
 resource "aws_iam_role" "github_actions_oidc" {
   count = var.enable_github_oidc ? 1 : 0
-  name  = "${var.project_name}-${var.environment}-github-actions-oidc-role"
+  name  = var.oidc_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -33,7 +33,10 @@ resource "aws_iam_role" "github_actions_oidc" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:*"
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:${var.github_repo}:ref:refs/heads/main",
+              "repo:${var.github_repo}:*"
+            ]
           }
         }
       }
@@ -41,7 +44,7 @@ resource "aws_iam_role" "github_actions_oidc" {
   })
 
   tags = {
-    Name = "${var.project_name}-github-actions-oidc-role"
+    Name = var.oidc_role_name
   }
 }
 
@@ -63,7 +66,7 @@ resource "aws_iam_policy" "github_actions_policy" {
         Resource = "*"
       },
       {
-        Sid    = "ECRImagePush"
+        Sid    = "ECRPushOperations"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -72,7 +75,9 @@ resource "aws_iam_policy" "github_actions_policy" {
           "ecr:PutImage",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload"
+          "ecr:CompleteLayerUpload",
+          "ecr:DescribeRepositories",
+          "ecr:CreateRepository"
         ]
         Resource = aws_ecr_repository.app.arn
       },

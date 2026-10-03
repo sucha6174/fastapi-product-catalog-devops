@@ -82,3 +82,9 @@ variable "enable_github_oidc" {
   type        = bool
   default     = false
 }
+
+variable "oidc_role_name" {
+  description = "IAM Role Name for GitHub Actions OIDC"
+  type        = string
+  default     = "github-actions-fastapi-role"
+}
