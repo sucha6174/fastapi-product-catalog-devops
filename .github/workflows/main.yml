@@ -9,8 +9,11 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  AWS_REGION: us-east-1
   ECR_REPOSITORY: fastapi-product-catalog
   ECS_CLUSTER: fastapi-product-catalog-prod-cluster
   ECS_SERVICE: fastapi-product-catalog-prod-service
@@ -47,24 +50,32 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Build Docker Image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build and validate multi-stage Docker image locally on the runner
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REPOSITORY:latest .
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION || env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, Tag, and Push Docker Image
+      - name: Tag and Push Docker Image to Amazon ECR
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build image using multi-stage Dockerfile
-          docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $REGISTRY/$ECR_REPOSITORY:latest .
+          # Tag Docker images with ECR repository registry
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REPOSITORY:latest $REGISTRY/$ECR_REPOSITORY:latest
           
           # Push commit SHA and latest tags to Amazon ECR
           docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -81,7 +92,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION || env.AWS_REGION }}
 
       - name: Trigger ECS Rolling Deployment
         run: |
@@ -90,5 +101,5 @@ jobs:
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE \
             --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ secrets.AWS_REGION || env.AWS_REGION }}
           echo "ECS service update triggered successfully."
