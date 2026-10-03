@@ -313,15 +313,26 @@ The repository includes a complete Continuous Integration and Continuous Deploym
    - Invokes `aws ecs update-service --force-new-deployment`.
    - ECS Fargate performs a rolling update by pulling the updated image and cycling tasks with zero downtime.
 
-### Required GitHub Secrets
+### Required GitHub Secrets & Authentication Options
 
-To activate the pipeline in your repository, configure the following secrets under **Settings > Secrets and variables > Actions**:
+The CI/CD pipeline supports two authentication methods for AWS:
 
-| Secret Name | Description |
-| :--- | :--- |
-| `AWS_ACCESS_KEY_ID` | IAM User Access Key with ECR and ECS deployment permissions |
-| `AWS_SECRET_ACCESS_KEY` | IAM User Secret Access Key |
-| `AWS_REGION` | Target AWS Region (e.g., `us-east-1`) |
+#### Option A: GitHub OIDC Role Assumption (Recommended & Most Secure)
+Does not require storing long-lived AWS keys in GitHub. Set up an IAM role trusting your repository and configure:
+
+| Secret Name | Required | Description |
+| :--- | :--- | :--- |
+| `AWS_ROLE_TO_ASSUME` | Yes | The ARN of the IAM role with ECR and ECS deployment permissions (e.g., `arn:aws:iam::<ACCOUNT_ID>:role/fastapi-product-catalog-prod-github-actions-oidc-role`) |
+| `AWS_REGION` | Optional | Target AWS Region (defaults to `us-east-1` if not set) |
+
+#### Option B: IAM User Access Keys (Alternative)
+If using an IAM user with programmatic access:
+
+| Secret Name | Required | Description |
+| :--- | :--- | :--- |
+| `AWS_ACCESS_KEY_ID` | Yes | AWS IAM Access Key ID |
+| `AWS_SECRET_ACCESS_KEY` | Yes | AWS IAM Secret Access Key |
+| `AWS_REGION` | Optional | Target AWS Region (defaults to `us-east-1` if not set) |
 
 ---
 

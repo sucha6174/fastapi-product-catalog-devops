@@ -36,3 +36,8 @@ output "api_access_instructions" {
   description = "Instructions for testing and accessing the deployed FastAPI application"
   value       = "Once the ECS task is in RUNNING state, execute the command in 'api_public_ip_command' to obtain the public IP, then access the API at http://<PUBLIC_IP>:8000/docs"
 }
+
+output "github_actions_oidc_role_arn" {
+  description = "IAM Role ARN for GitHub Actions OIDC authentication (set as AWS_ROLE_TO_ASSUME secret)"
+  value       = var.enable_github_oidc ? aws_iam_role.github_actions_oidc[0].arn : "OIDC provisioning disabled (set enable_github_oidc = true to enable)"
+}

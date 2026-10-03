@@ -70,3 +70,15 @@ variable "ecs_memory" {
   type        = string
   default     = "512"
 }
+
+variable "github_repo" {
+  description = "GitHub repository path in format owner/repo for OIDC role trust policy"
+  type        = string
+  default     = "sucha6174/fastapi-product-catalog-devops"
+}
+
+variable "enable_github_oidc" {
+  description = "Whether to provision the GitHub Actions OIDC IAM role in AWS"
+  type        = bool
+  default     = false
+}
